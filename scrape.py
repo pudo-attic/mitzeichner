@@ -61,6 +61,7 @@ def persist(petition_id, signer_id, theme, title, creator, end_date, name,
     cur = c.execute("""SELECT petition_id, signer_id FROM signatories WHERE
            petition_id = ? AND signer_id = ?""", (petition_id, signer_id))
     if not cur.fetchone():
+    #if True:
         c.execute("""INSERT INTO signatories VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (petition_id, signer_id, theme, title, creator, end_date, name,
                 location, sign_date))
@@ -70,7 +71,7 @@ def persist(petition_id, signer_id, theme, title, creator, end_date, name,
 if __name__ == '__main__':
     try:
         cur = conn.cursor() 
-        cur.execute("""CREATE TABLE signatories (
+        cur.execute("""CREATE TABLE IF NOT EXISTS signatories (
                 petition_id,
                 signer_id,
                 theme,
@@ -80,6 +81,14 @@ if __name__ == '__main__':
                 name,
                 location,
                 sign_date)""")
+        cur.execute("""CREATE INDEX IF NOT EXISTS ids ON
+                signatories (petition_id, signer_id)""")
+        cur.execute("""CREATE INDEX IF NOT EXISTS pid ON
+                signatories (petition_id)""")
+        cur.execute("""CREATE INDEX IF NOT EXISTS sid ON
+                signatories (signer_id)""")
+        cur.execute("""CREATE INDEX IF NOT EXISTS sname ON
+                signatories (name)""")
         conn.commit()
         cur.close()
     except Exception, e:
