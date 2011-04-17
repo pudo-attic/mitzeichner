@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset=utf-8 />
+	<title>Mitzeichner</title>
+  <link rel="stylesheet" type="text/css" media="screen" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+  <div id="container">
+    <div id="headline">
+      Dezentralarchiv politischer Meinungen.
+    </div>
+    <form method="GET">
+      <input name="q" placeholder="Dein Name" value="{{ q }}" autofocus />
+    </form>
+    {% if results %}
+    <ol>
+      {% set last = (None, None) %}
+      {% for result in results %}
+      <li>
+          {% if (result.get('name'), result.get('location')) != last %}
+          <div class="name">
+          {{ result.get('name') }} ({{ result.get('location').split(' / ')[-1] }})
+          </div>
+          {% endif %}
+          <div class="title">
+            {{ result.get('sign_date') }}: 
+            <a href="https://epetitionen.bundestag.de/index.php?action=petition;sa=details;petition={{ result.get('petition_id') }}">{{ result.get('title') }}</a>
+            &mdash;
+            {{ result.get('theme') }}
+          </div>
+        </li>
+        {% set last = (result.get('name'), result.get('location')) %}
+      {% endfor %}
+    </ol>
+    {% endif %}
+    <footer>
+      <a href="https://epetitionen.bundestag.de/">Was</a>
+      &middot;
+      <a href="https://epetitionen.bundestag.de/robots.txt">Warum</a>
+      &middot;
+      <a href="http://bitbucket.org/pudo/mitzeichner">Wie</a>
+      &middot; (K) 2011: Friedrich Lindenberg
+    </footer>
+  </div>
+</body>
+</html>
+
+
