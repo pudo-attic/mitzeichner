@@ -1,4 +1,7 @@
+import logging
 from itertools import count
+from Queue import Queue
+from threading import Thread, Lock
 from lxml import html
 import urllib2
 from core import db
@@ -7,6 +10,26 @@ INDEX_URL = 'https://epetitionen.bundestag.de/index.php?action=petition&sa=list%
 SIGN_URL = 'https://epetitionen.bundestag.de/index.php?action=petition&sa=sign&petition=%s&limit=100&start=%s'
 
 conn = db()
+
+def threaded(items, func):
+    queue = Queue(maxsize=1000)
+    def queue_consumer():
+        while True:
+            item = queue.get(True)
+            try:
+                func(item)
+            except Exception, e:
+                logging.exception(e)
+            queue.task_done()
+
+    for i in range(20):
+         t = Thread(target=queue_consumer)
+         t.daemon = True
+         t.start()
+
+    for item in items:
+        queue.put(item, True)
+
 
 
 def urldoc(url, *a):
@@ -28,18 +51,19 @@ def index():
                 if len(cols) != 6:
                     continue
                 id, title, creator, end_date, s_count, forum = cols
-                theme, title = title.xpath('string()').split(' - ', 1)
-                signatories(id.text,
-                            theme, title,
-                            creator.text, 
-                            end_date.text)
+                title = title.xpath("string()").strip()
+                theme = ''
+                if ' - ' in title:
+                    theme, title = title.split(' - ', 1)
+                yield (id.text, theme, title, creator.text, end_date.text)
                 page.add(id.text)
-            print page
+            #print page
             if last_set.intersection(page) == page:
                 break
             last_set = page
 
-def signatories(id, theme, title, creator, end_date):
+def signatories(a):
+    id, theme, title, creator, end_date = a
     last_set = set()
     for i in count():
         page = set()
@@ -56,17 +80,23 @@ def signatories(id, theme, title, creator, end_date):
         last_set = page
 
 def persist(petition_id, signer_id, theme, title, creator, end_date, name,
-        location, sign_date):
-    c = conn.cursor()
-    cur = c.execute("""SELECT petition_id, signer_id FROM signatories WHERE
-           petition_id = ? AND signer_id = ?""", (petition_id, signer_id))
-    if not cur.fetchone():
-    #if True:
-        c.execute("""INSERT INTO signatories VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (petition_id, signer_id, theme, title, creator, end_date, name,
-                location, sign_date))
-        conn.commit()
-    c.close()
+        location, sign_date, lock=Lock()):
+    lock.acquire()
+    try:
+        #print name.encode("utf-8")
+        c = conn.cursor()
+        cur = c.execute("""SELECT petition_id, signer_id FROM signatories WHERE
+               petition_id = ? AND signer_id = ?""", (petition_id, signer_id))
+        if not cur.fetchone():
+            c.execute("""INSERT INTO signatories VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (petition_id, signer_id, theme, title, creator, end_date, name,
+                    location, sign_date))
+            conn.commit()
+        c.close()
+    except Exception, e:
+        print e
+    finally:
+        lock.release()
 
 if __name__ == '__main__':
     try:
@@ -93,5 +123,5 @@ if __name__ == '__main__':
         cur.close()
     except Exception, e:
         pass
-    index()
+    threaded(index(), signatories)
 
