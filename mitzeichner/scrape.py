@@ -1,15 +1,15 @@
 import logging
+import sys
 from itertools import count
 from Queue import Queue
-from threading import Thread, Lock
+from threading import Thread
 from lxml import html
 import urllib2
-from core import db
+from core import db, Mitzeichner
+from delegation import delegations
 
 INDEX_URL = 'https://epetitionen.bundestag.de/index.php?action=petition&sa=list%s&limit=100&start=%s'
 SIGN_URL = 'https://epetitionen.bundestag.de/index.php?action=petition&sa=sign&petition=%s&limit=100&start=%s'
-
-conn = db()
 
 def threaded(items, func):
     queue = Queue(maxsize=1000)
@@ -22,7 +22,7 @@ def threaded(items, func):
                 logging.exception(e)
             queue.task_done()
 
-    for i in range(20):
+    for i in range(10):
          t = Thread(target=queue_consumer)
          t.daemon = True
          t.start()
@@ -40,8 +40,8 @@ def urldoc(url, *a):
     return doc
 
 
-def index():
-    for list_ in range(2,5):
+def index(lists):
+    for list_ in lists:
         last_set = set()
         for i in count():
             page = set()
@@ -78,50 +78,21 @@ def signatories(a):
         if last_set.intersection(page) == page:
             break
         last_set = page
+    db.session.commit()
 
 def persist(petition_id, signer_id, theme, title, creator, end_date, name,
-        location, sign_date, lock=Lock()):
-    lock.acquire()
-    try:
-        #print name.encode("utf-8")
-        c = conn.cursor()
-        cur = c.execute("""SELECT petition_id, signer_id FROM signatories WHERE
-               petition_id = ? AND signer_id = ?""", (petition_id, signer_id))
-        if not cur.fetchone():
-            c.execute("""INSERT INTO signatories VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                    (petition_id, signer_id, theme, title, creator, end_date, name,
-                    location, sign_date))
-            conn.commit()
-        c.close()
-    except Exception, e:
-        print e
-    finally:
-        lock.release()
+        location, sign_date):
+    if not Mitzeichner.by_petition_signer(petition_id, signer_id):
+        mitzeichner = Mitzeichner(petition_id, signer_id, theme, title, creator, end_date, name,
+                location, sign_date)
+        db.session.add(mitzeichner)
+        delegations(mitzeichner)
 
 if __name__ == '__main__':
-    try:
-        cur = conn.cursor() 
-        cur.execute("""CREATE TABLE IF NOT EXISTS signatories (
-                petition_id,
-                signer_id,
-                theme,
-                title,
-                creator,
-                end_date,
-                name,
-                location,
-                sign_date)""")
-        cur.execute("""CREATE INDEX IF NOT EXISTS ids ON
-                signatories (petition_id, signer_id)""")
-        cur.execute("""CREATE INDEX IF NOT EXISTS pid ON
-                signatories (petition_id)""")
-        cur.execute("""CREATE INDEX IF NOT EXISTS sid ON
-                signatories (signer_id)""")
-        cur.execute("""CREATE INDEX IF NOT EXISTS sname ON
-                signatories (name)""")
-        conn.commit()
-        cur.close()
-    except Exception, e:
-        pass
-    threaded(index(), signatories)
+    if not len(sys.argv) == 2:
+        raise ValueError("Need to give a command: full, current")
+    if sys.argv[1] == 'full':
+        threaded(index([2, 3, 4]), signatories)
+    elif sys.argv[1] == 'current':
+        threaded(index([2]), signatories)
 

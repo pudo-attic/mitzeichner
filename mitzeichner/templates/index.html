@@ -3,34 +3,97 @@
 <head>
 	<meta charset=utf-8 />
 	<title>Mitzeichner</title>
-  <link rel="stylesheet" type="text/css" media="screen" href="{{ url_for('static', filename='style.css') }}" />
+    <link rel="stylesheet" type="text/css" media="screen" href="{{ url_for('static', filename='style.css') }}" />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.6.1/jquery.min.js"></script>
+    <script>
+        var delegate = function(name, location, theme) {
+          $("#delegation #theme").val(theme);
+          $("#delegation #name").val(name);
+          $("#delegation #location").val(location);
+          $("#delegation #desc").html("An " + name + " (" + location + ") delegieren");
+          $("#shadow").fadeIn();
+          $("#close").click(function(e) {
+            $("#shadow").fadeOut();
+          }); 
+        }
+    </script>
 </head>
 <body>
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <div class="flashes">
+      {% for message in messages %}
+        <span>{{ message }}</span>
+      {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+  <div id="shadow">
+    <div id="lightbox">
+      <div id="form">
+        <h3>Petitionen delegieren</h3>
+        <p>
+        Um Petition zu delegieren wähle ein Themenfeld und hinterlasse
+        Dein Kennwort für das ePetitionen-System des Bundestags. 
+        Das Kennwort wird anschließend <b>im Klartext</b> auf einem Privatserver
+        gespeichert. Insgesamt ist dies eine schlechte Idee. Sony würde sich schämen.
+        </p>
+        <form id="delegation" action="/delegate" method="POST">
+          <strong id="desc"></strong>
+          <input type="hidden" id="name" name="agent_name" value="" />
+          <input type="hidden" id="location" name="agent_location" value="" />
+          <label for="theme">Politikfeld:</label>
+          <select id="theme" name="theme">
+            <option value="*">Alle</option>
+            {% for theme in themes %}
+              <option value="{{ theme }}">{{ theme }}</option>
+            {% endfor %}
+          </select>
+          <label for="username">Benutzername:</label>
+          <input name="username" placeholder="NutzerXXXXX" />
+          <label for="password">Passwort:</label>
+          <input type="password" name="password" />
+          <input type="submit" value="Speichern" />
+          &mdash; <a href="#" id="close">Abbrechen</a>
+        </form>
+        <p>
+        <a
+          href="https://epetitionen.bundestag.de/index.php?action=reminder">Passwort
+          vergessen?</a>
+        </p>
+      </div>
+    </div>
+  </div>
   <div id="container">
     <div id="headline">
       Zentralarchiv politischer Meinungen.
     </div>
     <form method="GET">
-      <input name="q" placeholder="Dein Name" value="{{ q }}" autofocus />
+      <input id="search" name="q" placeholder="Dein Name" value="{{ q }}" autofocus />
     </form>
     {% if results %}
     <ol>
       {% set last = (None, None) %}
       {% for result in results %}
       <li>
-          {% if (result.get('name'), result.get('location')) != last %}
+          {% if (result.name, result.location) != last %}
+          <div class="delegation">
+            <a href="#" onclick="delegate('{{result.name}}',
+              '{{result.location}}', '{{result.theme}}')">delegieren</a>
+          </div>
           <div class="name">
-          {{ result.get('name') }} ({{ result.get('location').split(' / ')[-1] }})
+          {{ result.name }} ({{ result.location.split(' / ')[-1] }})
           </div>
           {% endif %}
           <div class="title">
-            {{ result.get('sign_date') }}: 
-            <a href="https://epetitionen.bundestag.de/index.php?action=petition;sa=details;petition={{ result.get('petition_id') }}">{{ result.get('title') }}</a>
+            {{ result.sign_date }}: 
+            <a
+              href="https://epetitionen.bundestag.de/index.php?action=petition;sa=details;petition={{ result.petition_id }}">{{ result.title }}</a>
             &mdash;
-            {{ result.get('theme') }}
+            {{ result.theme }}
           </div>
         </li>
-        {% set last = (result.get('name'), result.get('location')) %}
+        {% set last = (result.name, result.location) %}
       {% endfor %}
     </ol>
     {% endif %}

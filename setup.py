@@ -9,7 +9,9 @@ setup(
     url='http://mitzeichner.pudo.org/',
     install_requires=[
         "lxml>=2.2.7",
-        "Flask>=0.6.1"
+        "Flask>=0.6.1",
+        "Flask-SQLAlchemy>=0.1",
+        "colander>=0.9.1"
     ],
     packages=find_packages(exclude=['ez_setup']),
     include_package_data=True,
