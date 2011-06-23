@@ -15,18 +15,19 @@ class DelegationForm(colander.MappingSchema):
 def delegate():
     try:
         data = DelegationForm().deserialize(request.form)
-        #if not check_credentials(data.get('username'), data.get('password')):
-        #    flash("Deine Anmeldedaten sind inkorrekt.")
-        #else:
-        delegation = Delegation(data.get('agent_name'),
-                                data.get('agent_location'),
-                                data.get('theme'),
-                                data.get('username'),
-                                data.get('password'))
-        db.session.add(delegation)
-        db.session.commit()
-        flash("Deine Delegation wurde eingerichtet. " +
-              "Widerruf kommt in Version 2" )
+        data = [(k, v[0]) for k, v in data.items()]
+        if not check_credentials(data.get('username'), data.get('password')):
+            flash("Deine Anmeldedaten sind inkorrekt.")
+        else:
+            delegation = Delegation(data.get('agent_name'),
+                                    data.get('agent_location'),
+                                    data.get('theme'),
+                                    data.get('username'),
+                                    data.get('password'))
+            db.session.add(delegation)
+            db.session.commit()
+            flash("Deine Delegation wurde eingerichtet. " +
+                  "Widerruf kommt in Version 2" )
     except colander.Invalid:
         flash("Fehler in den Eingabedaten!")
     return redirect("/")

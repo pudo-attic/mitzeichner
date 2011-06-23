@@ -63,6 +63,4 @@ def delegations(mitzeichner):
         sign(delegation.username, delegation.password, mitzeichner.petition_id)
 
 
-if __name__ == '__main__':
-    sign("Nutzer83311x", "helix512", "17991")
 
