@@ -69,11 +69,7 @@
       Zentralarchiv politischer Meinungen.
     </div>
     <form method="GET">
-      {% if q %}
-        <input id="search" name="q" placeholder="Hans Müller" value="{{ q }}" autofocus />
-      {% elif %}
-        <input id="search" name="q" placeholder="Hans Müller" autofocus />
-      {% endif %}
+      <input id="search" name="q" placeholder="Hans Müller" value="{{ q }}" autofocus />
     </form>
     {% if results %}
     <ol>
